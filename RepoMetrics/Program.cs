@@ -18,6 +18,37 @@ namespace RepoMetrics
         /// if true, scan the .VS folder
         /// </summary>
         static bool vs = false;
+
+        static Dictionary<string, long> sizesByExtension;
+
+        private static void ProcessFolder(string folder)
+        {
+            foreach (var entry in Directory.GetFiles(folder))
+            {
+                var extension = Path.GetExtension(entry);
+                var length = new FileInfo(entry).Length;
+                if (sizesByExtension.ContainsKey(extension))
+                {
+                    sizesByExtension[extension] += length;
+                }
+                else
+                {
+                    sizesByExtension[extension] = length;
+                }
+            }
+            foreach (var dir in Directory.GetDirectories(folder))
+            {
+                if (dir.EndsWith(".git") && !git)
+                {
+                    continue;
+                }
+                if (dir.EndsWith(".vs") && !vs)
+                {
+                    continue;
+                }
+                ProcessFolder(dir);
+            }
+        }
         private static void Main(string[] args)
         {
             try
@@ -39,7 +70,20 @@ namespace RepoMetrics
                         {
                             git = true;
                         }
-                        else if (arg[1] == '')
+                        else if (arg[1] == 'v')
+                        {
+                            vs = true;
+                        }
+                    }
+                    else
+                    {
+                        sizesByExtension = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+                        ProcessFolder(arg);
+                        foreach (var entry in sizesByExtension)
+                        {
+                            var extension = string.IsNullOrEmpty(entry.Key) ? "[No extension]" : entry.Key;
+                            Console.WriteLine($"{extension} {entry.Value}");
+                        }
                     }
                 }
             }
